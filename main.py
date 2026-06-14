@@ -165,7 +165,16 @@ async def announce(interaction: discord.Interaction, message_content: str, ping_
         color=0xff0000
     )
     embed.set_footer(text=f"Announced by {interaction.user.name}")
+    # --- 8. SLASH COMMAND: SAY (NORMAL TEXT MESSAGE WITH DIRECT PING) ---
+@bot.tree.command(name="say", description="Send a normal text message through the bot (Admin Only)")
+@discord.app_commands.checks.has_permissions(administrator=True)
+async def say(interaction: discord.Interaction, message: str):
+    # അഡ്മിന് മാത്രം കാണാവുന്ന രീതിയിൽ മെസ്സേജ് അയച്ചു എന്ന് കൺഫേം ചെയ്യുന്നു
+    await interaction.response.send_message("Message sent successfully!", ephemeral=True)
     
+    # ബോട്ട് വഴി ചാനലിലേക്ക് നോർമൽ ടെക്സ്റ്റ് മെസ്സേജ് നേരിട്ട് അയക്കുന്നു
+    await interaction.channel.send(message)
+
     # 4. ചാനലിലേക്ക് ആദ്യം ഡയറക്ട് പിങ് മെസ്സേജും, തൊട്ടുതാഴെ എംബെഡും ഒന്നിച്ച് അയക്കുന്നു
     if ping_text:
         await interaction.channel.send(content=ping_text, embed=embed)
