@@ -5,7 +5,7 @@ from discord.ext import commands
 from threading import Thread
 from flask import Flask
 
-# വെബ് സെർവർ സെറ്റപ്പ് (ബോട്ട് 24/7 ഓൺ ആയിരിക്കാൻ)
+# വെബ് സെർവർ സെറ്റപ്പ്
 app = Flask('')
 @app.route('/')
 def home():
@@ -18,13 +18,66 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# ഡിസ്കോർഡ് ഇന്റന്റുകൾ (നിർബന്ധമായും members ഇന്റന്റ് ട്രൂ ആയിരിക്കണം)
-intents = discord.Intents.default()
-intents.message_content = True
-intents.members = True
-intents.guilds = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+# --- TICKET SYSTEM BUTTONS ---
+class TicketCloseView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None) # കസ്റ്റം ഐഡി ഉള്ളതുകൊണ്ട് ഈ ബട്ടൺ എപ്പോഴും ലൈവ് ആയിരിക്കും
+
+    @discord.ui.button(label="🔒 Close Ticket", style=discord.ButtonStyle.danger, custom_id="close_ticket_btn")
+    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("Closing and deleting this ticket in 3 seconds...", ephemeral=False)
+        await asyncio.sleep(3)
+        await interaction.channel.delete()
+
+class TicketSetupView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="📩 Create Ticket", style=discord.ButtonStyle.green, custom_id="create_ticket_btn")
+    async def create_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        guild = interaction.guild
+        member = interaction.user
+        
+        existing_channel = discord.utils.get(guild.channels, name=f"ticket-{member.name.lower()}")
+        if existing_channel:
+            await interaction.response.send_message(f"⚠️ You already have an open ticket here: {existing_channel.mention}", ephemeral=True)
+            return
+
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
+            guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_channels=True)
+        }
+
+        ticket_channel = await guild.create_text_channel(name=f"ticket-{member.name}", overwrites=overwrites)
+        
+        embed = discord.Embed(
+            title="🎫 Support Ticket Created!",
+            description=f"Hello {member.mention},\nOur Staff/Admins will assist you shortly. Please explain your issue here.\n\nClick the button below to **Close** this ticket when resolved.",
+            color=0x00ff00
+        )
+        
+        await ticket_channel.send(embed=embed, view=TicketCloseView())
+        await interaction.response.send_message(f"✅ Ticket created! Go to {ticket_channel.mention}", ephemeral=True)
+
+
+# ബോട്ട് ക്ലാസ് കസ്റ്റമൈസ് ചെയ്യുന്നു (Persistent Views ലോഡ് ചെയ്യാൻ)
+class KVABot(commands.Bot):
+    def __init__(self):
+        intents = discord.Intents.default()
+        intents.message_content = True
+        intents.members = True
+        intents.guilds = True
+        super().__init__(command_prefix="!", intents=intents)
+
+    async def setup_hook(self):
+        # ബോട്ട് ലോഗിൻ ആകുന്നതിന് തൊട്ടുമുൻപ് ബട്ടണുകൾ ബാക്ക്ഗ്രൗണ്ടിൽ രജിസ്റ്റർ ചെയ്യുന്നു
+        self.add_view(TicketSetupView())
+        self.add_view(TicketCloseView())
+        print("Persistent ticket views added successfully!")
+
+bot = KVABot()
 
 @bot.event
 async def on_ready():
@@ -37,32 +90,25 @@ async def on_ready():
         print(f"Failed to sync commands: {e}")
 
 
-# --- 🔥 കിടിലൻ വെൽക്കം സിസ്റ്റം (WELCOME BOT EVENT) ---
+# --- 🔥 വെൽക്കം സിസ്റ്റം ---
 @bot.event
 async def on_member_join(member):
-    # നിന്റെ സെർവറിലെ ചാനലിന്റെ പേര് 'welcome' എന്നാണെന്ന് ഉറപ്പുവരുത്തുക
-    channel = discord.utils.get(member.guild.text_channels, name="🛬丨ꜱᴩᴀᴡɴ-ᴀʀᴇᴀ")
-    
+    channel = discord.utils.get(member.guild.text_channels, name="welcome")
     if channel:
-        # മനോഹരമായ ഒരു എംബെഡ് ബോക്സ് വെൽക്കം മെസ്സേജ്
         embed = discord.Embed(
             title="👋 Welcome to the Server!",
             description=f"Hey {member.mention}, welcome to **{member.guild.name}**! 🎉\n\nWe are extremely happy to have you here. Make sure to check out the rules and have a great time!",
-            color=0x00ff00  # പച്ച കളർ
+            color=0x00ff00
         )
-        
-        # ജോയിൻ ചെയ്ത ആളുടെ പ്രൊഫൈൽ പിക്ചറും സെർവറിലെ ആകെ മെമ്പർമാരുടെ എണ്ണവും കാണിക്കാൻ
         embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
         embed.set_footer(text=f"Member #{len(member.guild.members)}")
-        
-        # ചാനലിലേക്ക് മെസ്സേജ് അയക്കുന്നു
         await channel.send(f"Welcome {member.mention}! ✨", embed=embed)
 
 
 # --- 1. SLASH COMMAND: INFO ---
 @bot.tree.command(name="info", description="View all available bot commands")
 async def info(interaction: discord.Interaction):
-    embed = discord.Embed(title="OLAM BOT", description="Server Management & Ticket Slash Commands:", color=0x00ff00)
+    embed = discord.Embed(title="KVA BOT", description="Server Management & Ticket Slash Commands:", color=0x00ff00)
     embed.add_field(name="/info", value="Check all available commands", inline=False)
     embed.add_field(name="/ping", value="Check if the bot is online and active", inline=False)
     embed.add_field(name="/clear [amount]", value="Delete multiple messages instantly (Admin Only)", inline=False)
@@ -111,50 +157,6 @@ async def announce(interaction: discord.Interaction, message_content: str):
     embed.set_footer(text=f"Announced by {interaction.user.name}")
     await interaction.response.send_message("Announcement sent!", ephemeral=True)
     await interaction.channel.send(embed=embed)
-
-
-# --- TICKET SYSTEM BUTTONS ---
-
-class TicketCloseView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="🔒 Close Ticket", style=discord.ButtonStyle.danger, custom_id="close_ticket_btn")
-    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Closing and deleting this ticket in 3 seconds...", ephemeral=False)
-        await asyncio.sleep(3)
-        await interaction.channel.delete()
-
-class TicketSetupView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="📩 Create Ticket", style=discord.ButtonStyle.green, custom_id="create_ticket_btn")
-    async def create_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
-        guild = interaction.guild
-        member = interaction.user
-        
-        existing_channel = discord.utils.get(guild.channels, name=f"ticket-{member.name.lower()}")
-        if existing_channel:
-            await interaction.response.send_message(f"⚠️ You already have an open ticket here: {existing_channel.mention}", ephemeral=True)
-            return
-
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
-            guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_channels=True)
-        }
-
-        ticket_channel = await guild.create_text_channel(name=f"ticket-{member.name}", overwrites=overwrites)
-        
-        embed = discord.Embed(
-            title="🎫 Support Ticket Created!",
-            description=f"Hello {member.mention},\nOur Staff/Admins will assist you shortly. Please explain your issue here.\n\nClick the button below to **Close** this ticket when resolved.",
-            color=0x00ff00
-        )
-        
-        await ticket_channel.send(embed=embed, view=TicketCloseView())
-        await interaction.response.send_message(f"✅ Ticket created! Go to {ticket_channel.mention}", ephemeral=True)
 
 # --- 7. SLASH COMMAND: SETUP TICKET ---
 @bot.tree.command(name="setup_ticket", description="Setup the private support ticket box (Admin Only)")
