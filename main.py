@@ -41,7 +41,7 @@ async def on_ready():
 @bot.event
 async def on_member_join(member):
     # നിന്റെ സെർവറിലെ ചാനലിന്റെ പേര് 'welcome' എന്നാണെന്ന് ഉറപ്പുവരുത്തുക
-    channel = discord.utils.get(member.guild.text_channels, name="welcome")
+    channel = discord.utils.get(member.guild.text_channels, name="🛬丨ꜱᴩᴀᴡɴ-ᴀʀᴇᴀ")
     
     if channel:
         # മനോഹരമായ ഒരു എംബെഡ് ബോക്സ് വെൽക്കം മെസ്സേജ്
