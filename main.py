@@ -144,19 +144,34 @@ async def kick(interaction: discord.Interaction, member: discord.Member, reason:
 async def ban(interaction: discord.Interaction, member: discord.Member, reason: str = None):
     await member.ban(reason=reason)
     await interaction.response.send_message(f"🔨 {member.mention} has been permanently banned! Reason: {reason}")
-
-# --- 6. SLASH COMMAND: ANNOUNCE ---
-@bot.tree.command(name="announce", description="Create a beautiful announcement box (Admin Only)")
+# --- 6. SLASH COMMAND: ANNOUNCE (WITH DIRECT PING) ---
+@bot.tree.command(name="announce", description="Create a beautiful announcement box with direct ping (Admin Only)")
 @discord.app_commands.checks.has_permissions(administrator=True)
-async def announce(interaction: discord.Interaction, message_content: str):
+async def announce(interaction: discord.Interaction, message_content: str, ping_role: discord.Role = None, ping_everyone: bool = False):
+    # 1. ആദ്യം അഡ്മിന് മാത്രം കാണാവുന്ന രീതിയിൽ റെസ്പോൺസ് നൽകുന്നു
+    await interaction.response.send_message("Announcement sent!", ephemeral=True)
+    
+    # 2. നോർമൽ ടെക്സ്റ്റ് മെസ്സേജ് ആയി അയക്കാനുള്ള പിങ് സെറ്റ് ചെയ്യുന്നു
+    ping_text = ""
+    if ping_everyone:
+        ping_text = "@everyone"
+    elif ping_role:
+        ping_text = ping_role.mention
+
+    # 3. മനോഹരമായ എംബെഡ് ബോക്സ് ഉണ്ടാക്കുന്നു
     embed = discord.Embed(
         title="📢 New Announcement!",
         description=message_content,
         color=0xff0000
     )
     embed.set_footer(text=f"Announced by {interaction.user.name}")
-    await interaction.response.send_message("Announcement sent!", ephemeral=True)
-    await interaction.channel.send(embed=embed)
+    
+    # 4. ചാനലിലേക്ക് ആദ്യം ഡയറക്ട് പിങ് മെസ്സേജും, തൊട്ടുതാഴെ എംബെഡും ഒന്നിച്ച് അയക്കുന്നു
+    if ping_text:
+        await interaction.channel.send(content=ping_text, embed=embed)
+    else:
+        await interaction.channel.send(embed=embed)
+
 
 # --- 7. SLASH COMMAND: SETUP TICKET ---
 @bot.tree.command(name="setup_ticket", description="Setup the private support ticket box (Admin Only)")
