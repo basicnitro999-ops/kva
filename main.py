@@ -22,7 +22,7 @@ def keep_alive():
 # --- TICKET SYSTEM BUTTONS ---
 class TicketCloseView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=None) # കസ്റ്റം ഐഡി ഉള്ളതുകൊണ്ട് ഈ ബട്ടൺ എപ്പോഴും ലൈവ് ആയിരിക്കും
+        super().__init__(timeout=None)
 
     @discord.ui.button(label="🔒 Close Ticket", style=discord.ButtonStyle.danger, custom_id="close_ticket_btn")
     async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -62,7 +62,6 @@ class TicketSetupView(discord.ui.View):
         await interaction.response.send_message(f"✅ Ticket created! Go to {ticket_channel.mention}", ephemeral=True)
 
 
-# ബോട്ട് ക്ലാസ് കസ്റ്റമൈസ് ചെയ്യുന്നു (Persistent Views ലോഡ് ചെയ്യാൻ)
 class KVABot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
@@ -72,7 +71,6 @@ class KVABot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # ബോട്ട് ലോഗിൻ ആകുന്നതിന് തൊട്ടുമുൻപ് ബട്ടണുകൾ ബാക്ക്ഗ്രൗണ്ടിൽ രജിസ്റ്റർ ചെയ്യുന്നു
         self.add_view(TicketSetupView())
         self.add_view(TicketCloseView())
         print("Persistent ticket views added successfully!")
@@ -115,6 +113,7 @@ async def info(interaction: discord.Interaction):
     embed.add_field(name="/kick [user] [reason]", value="Kick a user from the server (Admin Only)", inline=False)
     embed.add_field(name="/ban [user] [reason]", value="Ban a user from the server (Admin Only)", inline=False)
     embed.add_field(name="/announce [message]", value="Create a beautiful announcement box (Admin Only)", inline=False)
+    embed.add_field(name="/say [message]", value="Send a normal text message (Admin Only)", inline=False)
     embed.add_field(name="/setup_ticket", value="Setup the private support ticket system (Admin Only)", inline=False)
     await interaction.response.send_message(embed=embed)
 
@@ -144,45 +143,42 @@ async def kick(interaction: discord.Interaction, member: discord.Member, reason:
 async def ban(interaction: discord.Interaction, member: discord.Member, reason: str = None):
     await member.ban(reason=reason)
     await interaction.response.send_message(f"🔨 {member.mention} has been permanently banned! Reason: {reason}")
-# --- 6. SLASH COMMAND: ANNOUNCE (WITH DIRECT PING) ---
+
+
+# --- 6. SLASH COMMAND: ANNOUNCE (ERROR FIXED) ---
 @bot.tree.command(name="announce", description="Create a beautiful announcement box with direct ping (Admin Only)")
 @discord.app_commands.checks.has_permissions(administrator=True)
 async def announce(interaction: discord.Interaction, message_content: str, ping_role: discord.Role = None, ping_everyone: bool = False):
-    # 1. ആദ്യം അഡ്മിന് മാത്രം കാണാവുന്ന രീതിയിൽ റെസ്പോൺസ് നൽകുന്നു
     await interaction.response.send_message("Announcement sent!", ephemeral=True)
     
-    # 2. നോർമൽ ടെക്സ്റ്റ് മെസ്സേജ് ആയി അയക്കാനുള്ള പിങ് സെറ്റ് ചെയ്യുന്നു
     ping_text = ""
     if ping_everyone:
         ping_text = "@everyone"
-    elif ping_role:
+    elif ping_role is not None:
         ping_text = ping_role.mention
 
-    # 3. മനോഹരമായ എംബെഡ് ബോക്സ് ഉണ്ടാക്കുന്നു
     embed = discord.Embed(
-        title="✨𝗔𝗡𝗡𝗢𝗨𝗡𝗖𝗘𝗠𝗘𝗡𝗧✨",
+        title="📢 New Announcement!",
         description=message_content,
         color=0xff0000
     )
     embed.set_footer(text=f"Announced by {interaction.user.name}")
-    # --- 8. SLASH COMMAND: SAY (NORMAL TEXT MESSAGE WITH DIRECT PING) ---
-@bot.tree.command(name="say", description="Send a normal text message through the bot (Admin Only)")
-@discord.app_commands.checks.has_permissions(administrator=True)
-async def say(interaction: discord.Interaction, message: str):
-    # അഡ്മിന് മാത്രം കാണാവുന്ന രീതിയിൽ മെസ്സേജ് അയച്ചു എന്ന് കൺഫേം ചെയ്യുന്നു
-    await interaction.response.send_message("Message sent successfully!", ephemeral=True)
     
-    # ബോട്ട് വഴി ചാനലിലേക്ക് നോർമൽ ടെക്സ്റ്റ് മെസ്സേജ് നേരിട്ട് അയക്കുന്നു
-    await interaction.channel.send(message)
-
-    # 4. ചാനലിലേക്ക് ആദ്യം ഡയറക്ട് പിങ് മെസ്സേജും, തൊട്ടുതാഴെ എംബെഡും ഒന്നിച്ച് അയക്കുന്നു
-    if ping_text:
+    if ping_text != "":
         await interaction.channel.send(content=ping_text, embed=embed)
     else:
         await interaction.channel.send(embed=embed)
 
 
-# --- 7. SLASH COMMAND: SETUP TICKET ---
+# --- 7. SLASH COMMAND: SAY (NEW) ---
+@bot.tree.command(name="say", description="Send a normal text message through the bot (Admin Only)")
+@discord.app_commands.checks.has_permissions(administrator=True)
+async def say(interaction: discord.Interaction, message: str):
+    await interaction.response.send_message("Message sent successfully!", ephemeral=True)
+    await interaction.channel.send(message)
+
+
+# --- 8. SLASH COMMAND: SETUP TICKET ---
 @bot.tree.command(name="setup_ticket", description="Setup the private support ticket box (Admin Only)")
 @discord.app_commands.checks.has_permissions(administrator=True)
 async def setup_ticket(interaction: discord.Interaction):
@@ -199,3 +195,4 @@ if __name__ == "__main__":
     keep_alive()
     token = os.environ.get("TOKEN")
     bot.run(token)
+
