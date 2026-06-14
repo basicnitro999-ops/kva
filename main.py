@@ -93,7 +93,7 @@ async def on_ready():
 # --- 🔥 വെൽക്കം സിസ്റ്റം ---
 @bot.event
 async def on_member_join(member):
-    channel = discord.utils.get(member.guild.text_channels, name="welcome")
+    channel = discord.utils.get(member.guild.text_channels, name="🛬丨ꜱᴩᴀᴡɴ-ᴀʀᴇᴀ")
     if channel:
         embed = discord.Embed(
             title="👋 Welcome to the Server!",
