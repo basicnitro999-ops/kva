@@ -160,7 +160,7 @@ async def announce(interaction: discord.Interaction, message_content: str, ping_
 
     # 3. മനോഹരമായ എംബെഡ് ബോക്സ് ഉണ്ടാക്കുന്നു
     embed = discord.Embed(
-        title="📢 New Announcement!",
+        title="✨𝗔𝗡𝗡𝗢𝗨𝗡𝗖𝗘𝗠𝗘𝗡𝗧✨",
         description=message_content,
         color=0xff0000
     )
